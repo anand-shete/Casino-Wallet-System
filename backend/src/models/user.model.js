@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema({
     SOL: { type: Number, default: 0 },
     DOGE: { type: Number, default: 0 },
   },
+  virtual_balance: {
+    BTC: { type: Number, default: 0 },
+    ETH: { type: Number, default: 0 },
+    SOL: { type: Number, default: 0 },
+    DOGE: { type: Number, default: 0 },
+  },
   address: {
     BTC: { type: String, required: true },
     ETH: { type: String, required: true },

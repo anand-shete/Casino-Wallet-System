@@ -7,7 +7,6 @@ export const signJwt = (user) => {
   const payload = {
     _id: user._id,
     username: user.username,
-    balance: user.balance,
     address: user.address,
   };
   return jwt.sign(payload, JWT_SECRET);

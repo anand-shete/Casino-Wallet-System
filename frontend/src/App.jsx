@@ -31,8 +31,13 @@ export default function App() {
     SOL: "",
     DOGE: "",
   });
-
-  const getUserBalance = async () => {
+  const [vBalance, setVBalance] = useState({
+    BTC: "",
+    ETH: "",
+    SOL: "",
+    DOGE: "",
+  });
+  const getBalance = async () => {
     try {
       const res = await api.get("/balance");
       setBalance({
@@ -47,24 +52,25 @@ export default function App() {
         SOL: res.data.address.SOL,
         DOGE: res.data.address.DOGE,
       });
+      setVBalance({
+        BTC: res.data.virtual_balance.BTC,
+        ETH: res.data.virtual_balance.ETH,
+        SOL: res.data.virtual_balance.SOL,
+        DOGE: res.data.virtual_balance.DOGE,
+      });
+      setCasinoBal({
+        BTC: res.data.casinoBal.BTC ?? 0,
+        ETH: res.data.casinoBal.ETH ?? 0,
+        SOL: res.data.casinoBal.SOL ?? 0,
+        DOGE: res.data.casinoBal.DOGE ?? 0,
+      });
     } catch (error) {
       console.log("error getting balance", error?.response.data);
       toast.error(error?.response?.data?.message);
     }
   };
-
-  const getCasinoBal = async () => {
-    const res = await api.get("/balance/casino");
-    setCasinoBal({
-      BTC: res.data.balance.BTC ?? 0,
-      ETH: res.data.balance.ETH ?? 0,
-      SOL: res.data.balance.SOL ?? 0,
-      DOGE: res.data.balance.DOGE ?? 0,
-    });
-  };
   useEffect(() => {
-    getUserBalance();
-    getCasinoBal();
+    getBalance();
   }, []);
 
   const deposit = async () => {
@@ -84,6 +90,12 @@ export default function App() {
         SOL: res.data.balance.SOL,
         DOGE: res.data.balance.DOGE,
       });
+      setVBalance({
+        BTC: res.data.virtual_balance.BTC,
+        ETH: res.data.virtual_balance.ETH,
+        SOL: res.data.virtual_balance.SOL,
+        DOGE: res.data.virtual_balance.DOGE,
+      });
     } catch (error) {
       console.log(error?.response?.data?.message);
       toast.error(error?.response?.data?.message);
@@ -100,11 +112,11 @@ export default function App() {
       // console.log(res.data);
       toast.success(res.data.message);
       setResult(res.data.message);
-      setBalance({
-        BTC: res.data?.balance.BTC,
-        ETH: res.data?.balance.ETH,
-        SOL: res.data?.balance.SOL,
-        DOGE: res.data?.balance.DOGE,
+      setVBalance({
+        BTC: res.data?.virtual_balance.BTC,
+        ETH: res.data?.virtual_balance.ETH,
+        SOL: res.data?.virtual_balance.SOL,
+        DOGE: res.data?.virtual_balance.DOGE,
       });
     } catch (error) {
       console.log("play function error", error.response.data.message);
@@ -120,18 +132,24 @@ export default function App() {
         address: address[cryptocurrency],
         cryptocurrency: withdrawCurrency,
       });
-      // console.log("res", res.data);
+      setVBalance({
+        BTC: res.data.virtual_balance.BTC,
+        ETH: res.data.virtual_balance.ETH,
+        SOL: res.data.virtual_balance.SOL,
+        DOGE: res.data.virtual_balance.DOGE,
+      });
+
       setBalance({
-        BTC: res.data.balance.BTC,
-        ETH: res.data.balance.ETH,
-        SOL: res.data.balance.SOL,
-        DOGE: res.data.balance.DOGE,
+        BTC: res.data?.balance.BTC,
+        ETH: res.data?.balance.ETH,
+        SOL: res.data?.balance.SOL,
+        DOGE: res.data?.balance.DOGE,
       });
       setCasinoBal({
-        BTC: res.data.casinoBal.BTC ?? 0,
-        ETH: res.data.casinoBal.ETH ?? 0,
-        SOL: res.data.casinoBal.SOL ?? 0,
-        DOGE: res.data.casinoBal.DOGE ?? 0,
+        BTC: res.data.casinoBal.BTC,
+        ETH: res.data.casinoBal.ETH,
+        SOL: res.data.casinoBal.SOL,
+        DOGE: res.data.casinoBal.DOGE,
       });
       toast.success(res.data.message);
     } catch (error) {
@@ -141,7 +159,7 @@ export default function App() {
     }
   };
   return (
-    <div className="max-h-screen max-w-screen grid grid-cols-2 gap-x-20 gap-y-10  m-20 justify-center items-center">
+    <div className="max-h-screen max-w-screen grid grid-cols-2 gap-x-20 gap-y-5  m-20 justify-center items-center">
       <Button
         className="absolute top-4 right-10"
         size={"lg"}
@@ -150,7 +168,7 @@ export default function App() {
         Log Out
       </Button>
       {/* Casino's Balance */}
-      <div className="p-10 flex-row border rounded-2xl shadow-2xl w-2xl">
+      <div className="p-10 flex-row border rounded-2xl shadow-xl w-2xl">
         <h1 className="text-2xl pb-3 font-bold">Casino's Balance</h1>
         Bitcoin: <span className="font-bold">{casinoBal.BTC}</span>
         <FaBitcoin className="inline ml-1 relative mr-5 bottom-[1px]" />
@@ -162,9 +180,9 @@ export default function App() {
         <SiDogecoin className="inline relative mr-5 bottom-[2px] ml-1" />
       </div>
 
-      {/* User's Balance */}
-      <div className="p-10 border rounded-2xl shadow-2xl w-2xl">
-        <h1 className="text-2xl pb-3 font-bold">User's Balance</h1>
+      {/* True Deposit Balance */}
+      <div className="p-10 border rounded-2xl shadow-xl w-2xl">
+        <h1 className="text-2xl pb-3 font-bold"> Balance</h1>
         Bitcoin: <span className="font-bold">{balance.BTC}</span>
         <FaBitcoin className="inline ml-1 relative mr-5 bottom-[1px]" />
         Ethereum: <span className="font-bold">{balance.ETH}</span>
@@ -175,8 +193,21 @@ export default function App() {
         <SiDogecoin className="inline relative mr-5 bottom-[2px] ml-1" />
       </div>
 
+      {/* Virtual Balance Balance */}
+      <div className="p-10 border rounded-2xl shadow-xl w-2xl">
+        <h1 className="text-2xl pb-3 font-bold">Virtual Balance</h1>
+        Bitcoin: <span className="font-bold">{vBalance.BTC}</span>
+        <FaBitcoin className="inline ml-1 relative mr-5 bottom-[1px]" />
+        Ethereum: <span className="font-bold">{vBalance.ETH}</span>
+        <FaEthereum className="inline relative mr-5 bottom-[2px] ml-1" />
+        Solana: <span className="font-bold">{vBalance.SOL}</span>
+        <SiSolana className="relative mr-5 bottom-[1px] inline ml-1" />
+        Dogecoin: <span className="font-bold">{vBalance.DOGE}</span>
+        <SiDogecoin className="inline relative mr-5 bottom-[2px] ml-1" />
+      </div>
+
       {/* Deposit Cash */}
-      <div className="p-10 border flex flex-col rounded-2xl shadow-2xl w-2xl">
+      <div className="p-10 border flex flex-col rounded-2xl shadow-xl w-2xl">
         <h1 className="pb-5 font-bold text-2xl">Deposit Cash</h1>
         <div className="flex space-x-5">
           <Input type="number" id="amount" className="w-2xl" />
@@ -195,7 +226,7 @@ export default function App() {
       </div>
 
       {/* Play Game */}
-      <div className="p-10 border space-y-4 rounded-2xl shadow-2xl w-2xl">
+      <div className="p-10 border space-y-4 rounded-2xl shadow-xl w-2xl">
         <h1 className="text-2xl font-bold">Play Game</h1>
         <div className="w-full border rounded-xl border-black">
           <p
@@ -223,7 +254,7 @@ export default function App() {
       </div>
 
       {/* Withdrwals */}
-      <div className="p-10 border rounded-2xl shadow-2xl w-full">
+      <div className="p-10 border rounded-2xl shadow-xl w-full">
         <h1 className="font-black text-2xl pb-5">Withdraw</h1>
         <div className="flex space-x-5">
           <Input type="number" id="withDrawAmount" className="w-2xl" />
@@ -242,7 +273,7 @@ export default function App() {
       </div>
 
       {/* Event Logs */}
-      <div className="p-10 border rounded-2xl shadow-2xl w-full">
+      <div className="p-10 border rounded-2xl shadow-xl w-full">
         <h1 className="font-black text-2xl">Logs</h1>
       </div>
     </div>
