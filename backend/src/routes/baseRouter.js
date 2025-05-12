@@ -26,6 +26,26 @@ router.get("/", (req, res) => {
   return res.status(200).json({ message: "API HealthCheck Passed" });
 });
 
+router.get("/balance", userAuth, async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.user._id }).lean();
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const transaction = await Transaction.findOne({ username: req.user.username });
+
+    return res.status(200).json({
+      message: "Balance fetched successsfully",
+      balance: user.balance,
+      virtual_balance: user.virtual_balance,
+      address: user.address,
+      casinoBal: casinoBalance.balance,
+      transaction: transaction.log,
+    });
+  } catch (error) {
+    console.log("Error fetching user balance", error);
+    return res.status(500).json({ message: "Error fetching user balance" });
+  }
+});
+
 router.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -45,7 +65,7 @@ router.post("/register", async (req, res) => {
       });
       await Transaction.create({
         username,
-        log: `User ${username} Registered `,
+        log: `User ${username} Registered`,
       });
     }
     const user = await User.findOne({ username });
@@ -181,13 +201,13 @@ router.post("/withdraw", userAuth, async (req, res) => {
     // console.log("before vb", before.virtual_balance[cryptocurrency]);
     // console.log("before balance", before.balance[cryptocurrency]);
     // console.log("before casinoBal", casinoBalance.balance[cryptocurrency]);
-    // console.log("\n");
+
     let transaction = "Failed Transaction";
     if (
       amount <= before.virtual_balance[cryptocurrency] &&
       amount <= before.balance[cryptocurrency]
     ) {
-      // console.log("first condition");
+      // console.log("1st condition");
 
       await User.updateOne(
         { _id: req.user._id },
@@ -213,12 +233,8 @@ router.post("/withdraw", userAuth, async (req, res) => {
       await User.updateOne(
         { _id: req.user._id },
         {
-          $inc: {
-            [`virtual_balance.${cryptocurrency}`]: -amount,
-          },
-          $set: {
-            [`balance.${cryptocurrency}`]: 0,
-          },
+          $inc: { [`virtual_balance.${cryptocurrency}`]: -amount },
+          $set: { [`balance.${cryptocurrency}`]: 0 },
         }
       );
       casinoBalance.balance[cryptocurrency] -= amount - before.balance[cryptocurrency];
@@ -230,7 +246,7 @@ router.post("/withdraw", userAuth, async (req, res) => {
     } else {
       // console.log("3rd condition");
       const user = await User.findOne({ _id: req.user._id }).lean();
-      return res.status(404).json({
+      return res.status(400).json({
         message: "Insufficient balance",
         balance: user.balance,
         virtual_balance: user.virtual_balance,
@@ -250,27 +266,6 @@ router.post("/withdraw", userAuth, async (req, res) => {
   } catch (error) {
     console.log("Error Withdrawing Amount", error);
     return res.status(500).json({ message: "Error withdrawing Amount" });
-  }
-});
-
-router.get("/balance", userAuth, async (req, res) => {
-  try {
-    const user = await User.findOne({ _id: req.user._id }).lean();
-    if (!user) return res.status(404).json({ message: "User not found" });
-    const transaction = await Transaction.findOne({ username: req.user.username });
-    console.log(transaction.log);
-
-    return res.status(200).json({
-      message: "Balance fetched successsfully",
-      balance: user.balance,
-      virtual_balance: user.virtual_balance,
-      address: user.address,
-      casinoBal: casinoBalance.balance,
-      transaction: transaction.log,
-    });
-  } catch (error) {
-    console.log("Error fetching user balance", error);
-    return res.status(500).json({ message: "Error fetching user balance" });
   }
 });
 

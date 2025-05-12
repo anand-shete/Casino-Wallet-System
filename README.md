@@ -4,12 +4,20 @@ A simulated crypto casino backend supporting BTC, ETH, SOL, and DOGE. Handles us
 
 ## Features
 
-- **User Registration and Authentication** : Register users and store credentials securely using hashed passwords.
-- **Fake Wallet Assignment** : Each user is assigned unique fake wallet addresses for BTC, ETH, SOL and DOGE.
+- **User Registration and Authentication** : Register users and store credentials securely using Json Web Tokens.
+- **Fake Wallet Assignment** : Each user is assigned unique fake wallet addresses for BTC, ETH, SOL and DOGE on registration.
 - **Deposit Simulation** : Users can simulate depositing crypto in their wallet using their wallet addresses.
-- **Withdrawl Simulation** : Real-time tracking of balances for each cryptocurrency per user.
 - **Casino Game** : A simple game mechanic randomly returns "won" or "lost".
+- **Transaction Logs**: Detailed Transaction Logs are displayed for every transaction made by the user.
 - **Vitest** : Used Vitest for efficient testing of all the backend endpoints.
+
+## Tech Stack
+
+- **Front-end**: React, Tailwind, Shad CN
+- **Back-end**: Node.js, Express.js
+- **Database**: MongoDB
+- **Security**: Json Web Token
+- **Testing**: Vitest
 
 ## Installation Setup
 
@@ -49,7 +57,7 @@ A simulated crypto casino backend supporting BTC, ETH, SOL, and DOGE. Handles us
 
 ## Testing
 
-Vitest has been used for testing critical components. To pass all the tests, follow these steps:
+Vitest has been used for testing. To pass all the tests, follow these steps:
 
 1. Navigate to the `/tests` directory:
    ```
@@ -72,11 +80,26 @@ Vitest has been used for testing critical components. To pass all the tests, fol
    ```
    npm run test
    ```
-   You should be able to pass all the 6 tests
+   You should see all 6 tests pass.
 
 ## API Documentation
 
-- POST `/register` - Register a User and create wallet addresses  
+- GET `/balance` - Get balance of a User.  
+  Request:
+  ```
+  {}
+  ```
+  Response: retuns `200`
+  ```
+  {
+    message: "Balance fetched successsfully",
+    balance: { BTC:0, ETH:5, SOL: 10, DOGE: 100 },
+    virtual_balance: { BTC:0, ETH:5, SOL: 10, DOGE: 100 }
+    address: { BTC:"bc170a3a6a477b4d8fc5ae9777800a1444d67", ETH:"0x4e874d006af02d6f573235ef51438cdff5b29f64",  SOL:"Qh4WgGU9J4VeU5Yd2e58db5J19CiSB315LVe8CRUTGP" , DOGE:"D6b98fc878f70d90a7189b73c459e40" },
+    casinoBal: { BTC: 1, ETH: 10, SOL: 100, DOGE: 1000 }
+  }
+  ```
+- POST `/register` - Register a User and create unique wallet address  
   Request:
 
   ```
@@ -88,7 +111,8 @@ Vitest has been used for testing critical components. To pass all the tests, fol
   ```
   {
     message:"User Registered Successfully"
-    username: "Anand"
+    username: "Anand",
+    transaction: "User Anand Registered"
   }
   ```
 
@@ -104,8 +128,10 @@ Vitest has been used for testing critical components. To pass all the tests, fol
   Response: Returns `200`
   ```
   {
-    message:"Deposited 10 BTC in Account,
-    balance: { BTC: 10, ETH:0, SOL: 0, DOGE:0 }
+    message: "Deposited 10 BTC in Account" ,
+    balance: { BTC: 10, ETH:0, SOL: 0, DOGE:0 },
+    virtual_balance: { BTC: 10, ETH:0, SOL: 0, DOGE:0 },
+    transaction.log: "Anand deposited 10 BTC"
   }
   ```
 - POST `/play` - Win function that lets user win on 50% probability.  
@@ -118,17 +144,18 @@ Vitest has been used for testing critical components. To pass all the tests, fol
   }
   ```
 
-  Response: returns `200`
+  Response: can be `200`, `400`
 
   ```
   {
     message: amount > 0 ? "You Won this Round!" : "You Lost this Round!",
-    balance: { BTC: 10, ETH:0, SOL: 0, DOGE:0 }
+    virtual_balance: user.{ BTC: 10, ETH:0, SOL: 0, DOGE:0 },
+    transaction: "Anand won 10 BTC",
   }
 
   ```
 
-- POST `/withdraw` - Withdraw money from your account to Payment Gateway.  
+- POST `/withdraw` - Withdraw money from user's deposit account
   Request:
 
   ```
@@ -139,27 +166,14 @@ Vitest has been used for testing critical components. To pass all the tests, fol
   }
   ```
 
-  Response: retuns `200`, `404`
+  Response: returns `200` or `404`
 
   ```
   {
     message: "Insufficient balance",
     balance: { BTC:0, ETH:5, SOL: 10, DOGE: 100 } ,
+    virtual_balance: { BTC:0, ETH:5, SOL: 10, DOGE: 100 },
     casinoBal: { BTC:1, ETH:10, SOL: 100, DOGE: 1000 }
-  }
-  ```
-
-- GET `/balance` - Get balance of a User.  
-  Request:
-  ```
-  {}
-  ```
-  Response: retuns `200`
-  ```
-  {
-    message: "Balance fetched successsfully",
-    balance: { BTC:0, ETH:5, SOL: 10, DOGE: 100 },
-    address: { BTC:"bc170a3a6a477b4d8fc5ae9777800a1444d67", ETH:"0x4e874d006af02d6f573235ef51438cdff5b29f64", SOL:"Qh4WgGU9J4VeU5Yd2e58db5J19CiSB315LVe8CRUTGP" , DOGE:"D6b98fc878f70d90a7189b73c459e40" },
   }
   ```
 
@@ -191,9 +205,6 @@ Transaction Schema
 ```
 {
   username: { type: String, required: true },
-  address: { type: String, required: true },
-  type: { type: String, enum: ["deposit", "withdrawal", "result"], required: true },
-  amount: { type: Number },
-  result: { type: String, enum: ["won", "lost"] },
+  log: { type: Array, requied: true },
 }
 ```

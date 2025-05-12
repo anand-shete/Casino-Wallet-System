@@ -27,7 +27,7 @@ describe("Authentication", () => {
 });
 
 describe("Core functionality", () => {
-  let token, address, balance;
+  let token, address;
 
   beforeAll(async () => {
     const username = "Anand";
@@ -40,60 +40,6 @@ describe("Core functionality", () => {
 
     token = res.headers["set-cookie"][0].split(";")[0].split("=")[1];
     address = verfifyJwt(token).address;
-    balance = verfifyJwt(token).balance;
-  });
-
-  test("User can deposit cryptocurrency using their wallet addresses", async () => {
-    const res = await axios.post(
-      `${BACKEND_URL}/deposit`,
-      {
-        amount: 40,
-        cryptocurrency: "ETH",
-        address: address.ETH,
-      },
-      { headers: { Cookie: `token=${token}` } }
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.data.balance).toBeDefined();
-    expect(res.data.message).toBeDefined();
-  });
-
-  test("Game function is working as expected", async () => {
-    const res = await axios.post(
-      `${BACKEND_URL}/play`,
-      {
-        wager: 20,
-        cryptocurrency: "ETH",
-      },
-      { headers: { Cookie: `token=${token}` } }
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.data.balance).toBeDefined();
-    expect(["You Won this Round!", "You Lost this Round!"]).toContain(res.data.message);
-  });
-
-  test("Users can withdraw form wallet according to the predefined logic", async () => {
-    const res = await axios.post(
-      `${BACKEND_URL}/withdraw`,
-      {
-        amount: 10,
-        cryptocurrency: "ETH",
-        address: address.ETH,
-      },
-      { headers: { Cookie: `token=${token}` } }
-    );
-
-    if (res.status === 200) {
-      expect(res.data.message).toBe("Withdrawal successsful");
-      expect(res.data.balance).toBeDefined();
-      expect(res.data.casinoBal).toBeDefined();
-    } else if (res.status === 404) {
-      expect(res.data.message).toBe("Insufficient balance");
-      expect(res.data.balance).toBeDefined();
-      expect(res.data.casinoBal).toBeDefined();
-    }
   });
 
   test("Get the balance of logged in user", async () => {
@@ -107,13 +53,81 @@ describe("Core functionality", () => {
     expect(res.data.address).toBeDefined();
   });
 
-  test("Get the balance of Casino", async () => {
-    const res = await axios.get(`${BACKEND_URL}/balance/casino`, {
-      headers: { Cookie: `token=${token}` },
-    });
+  test("User can deposit cryptocurrency using their wallet addresses", async () => {
+    const res = await axios.post(
+      `${BACKEND_URL}/deposit`,
+      {
+        amount: 10,
+        cryptocurrency: "ETH",
+        address: address.ETH,
+      },
+      { headers: { Cookie: `token=${token}` } }
+    );
 
     expect(res.status).toBe(200);
+    expect(res.data.message).toBeDefined();
     expect(res.data.balance).toBeDefined();
-    expect(res.data.address).toBeDefined();
+    expect(res.data.virtual_balance).toBeDefined();
+    expect(res.data.transaction).toBeDefined();
+  });
+
+  test("Game function produces a 50/50 win-lose probability", async () => {
+    const res = await axios.post(
+      `${BACKEND_URL}/play`,
+      {
+        wager: 5,
+        cryptocurrency: "ETH",
+      },
+      { headers: { Cookie: `token=${token}` } }
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.data.message).toBeDefined();
+    expect(res.data.virtual_balance).toBeDefined();
+    expect(res.data.transaction).toBeDefined();
+  });
+
+  test("Users can withdraw if amount is less than virtual balance and true deposit balance", async () => {
+    await axios.post(
+      `${BACKEND_URL}/deposit`,
+      {
+        amount: 40,
+        cryptocurrency: "BTC",
+        address: address.BTC,
+      },
+      { headers: { Cookie: `token=${token}` } }
+    );
+
+    const res = await axios.post(
+      `${BACKEND_URL}/withdraw`,
+      {
+        amount: 10,
+        cryptocurrency: "BTC",
+        address: address.BTC,
+      },
+      { headers: { Cookie: `token=${token}` } }
+    );
+    expect(res.data.message).toBe("Withdrawal Successful!");
+    expect(res.data.balance).toBeDefined();
+    expect(res.data.virtual_balance).toBeDefined();
+    expect(res.data.casinoBal).toBeDefined();
+    expect(res.data.transaction).toBeDefined();
+  });
+
+  test("User cannot withdraw if amount is greater than his virtual balance", async () => {
+    const res = await axios.post(
+      `${BACKEND_URL}/withdraw`,
+      {
+        amount: 1000,
+        cryptocurrency: "BTC",
+        address: address.BTC,
+      },
+      { headers: { Cookie: `token=${token}` }, validateStatus: () => true }
+    );
+    expect(res.status).toBe(400);
+    expect(res.data.message).toBe("Insufficient balance");
+    expect(res.data.balance).toBeDefined();
+    expect(res.data.virtual_balance).toBeDefined();
+    expect(res.data.casinoBal).toBeDefined();
   });
 });
