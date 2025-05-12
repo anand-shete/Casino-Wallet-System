@@ -13,6 +13,8 @@ export default function App() {
   const [cryptocurrency, setCryptoCurrency] = useState("BTC");
   const [wagerCurrency, setWagerCurrency] = useState("BTC");
   const [withdrawCurrency, setWithdrawCurrency] = useState("BTC");
+  const [logs, setLogs] = useState([]);
+
   const [address, setAddress] = useState({
     BTC: "",
     ETH: "",
@@ -64,11 +66,13 @@ export default function App() {
         SOL: res.data.casinoBal.SOL ?? 0,
         DOGE: res.data.casinoBal.DOGE ?? 0,
       });
+      setLogs(res.data.transaction);
     } catch (error) {
       console.log("error getting balance", error?.response.data);
       toast.error(error?.response?.data?.message);
     }
   };
+  
   useEffect(() => {
     getBalance();
   }, []);
@@ -96,6 +100,7 @@ export default function App() {
         SOL: res.data.virtual_balance.SOL,
         DOGE: res.data.virtual_balance.DOGE,
       });
+      setLogs(res.data.transaction);
     } catch (error) {
       console.log(error?.response?.data?.message);
       toast.error(error?.response?.data?.message);
@@ -118,6 +123,7 @@ export default function App() {
         SOL: res.data?.virtual_balance.SOL,
         DOGE: res.data?.virtual_balance.DOGE,
       });
+      setLogs(res.data.transaction);
     } catch (error) {
       console.log("play function error", error.response.data.message);
       toast.error(error?.response?.data?.message);
@@ -151,6 +157,7 @@ export default function App() {
         SOL: res.data.casinoBal.SOL,
         DOGE: res.data.casinoBal.DOGE,
       });
+      setLogs(res.data.transaction);
       toast.success(res.data.message);
     } catch (error) {
       console.log("error", error);
@@ -158,8 +165,9 @@ export default function App() {
       toast.error(error?.response?.data?.message);
     }
   };
+
   return (
-    <div className="max-h-screen max-w-screen grid grid-cols-2 gap-x-20 gap-y-5  m-20 justify-center items-center">
+    <div className="min-h-screen max-w-screen grid grid-cols-2 gap-x-20 gap-y-5 m-20 justify-center items-center">
       <Button
         className="absolute top-4 right-10"
         size={"lg"}
@@ -273,8 +281,17 @@ export default function App() {
       </div>
 
       {/* Event Logs */}
-      <div className="p-10 border rounded-2xl shadow-xl w-full">
-        <h1 className="font-black text-2xl">Logs</h1>
+      <div className="p-10 border rounded-2xl h-100 shadow-xl w-full overflow-y-scroll">
+        <h1 className="font-black text-2xl pb-5">Logs</h1>
+        {logs &&
+          logs
+            .slice()
+            .reverse()
+            .map((log, index) => (
+              <div key={index} className="p-1 text-gray-800">
+                {log}
+              </div>
+            ))}
       </div>
     </div>
   );

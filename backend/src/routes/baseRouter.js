@@ -13,7 +13,7 @@ import {
 const router = Router();
 
 const casinoBalance = {
-  balance: { BTC: 3, ETH: 10, SOL: 100, DOGE: 1000 },
+  balance: { BTC: 1, ETH: 10, SOL: 100, DOGE: 1000 },
   address: {
     BTC: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfN",
     ETH: "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
@@ -32,7 +32,7 @@ router.post("/register", async (req, res) => {
     if (!username || !password) return res.status(400).json({ message: "All fields are required" });
 
     const check = await User.countDocuments({ username }).lean();
-    if (!check)
+    if (!check) {
       await User.create({
         username,
         password,
@@ -43,7 +43,11 @@ router.post("/register", async (req, res) => {
           DOGE: generateDogeAddresses(),
         },
       });
-
+      await Transaction.create({
+        username,
+        log: `User ${username} Registered `,
+      });
+    }
     const user = await User.findOne({ username });
     const checkPassword = await user.comparePassword(password);
     if (!checkPassword) return res.status(403).json({ message: "Wrong Password" });
@@ -51,9 +55,12 @@ router.post("/register", async (req, res) => {
     const token = signJwt(user);
     if (!token) return res.status(500).json({ message: "Error creating Token" });
 
+    const transaction = await Transaction.findOne({ username });
+
     return res.cookie("token", token, { httpOnly: true }).status(200).json({
       message: "User Registered successsfully",
       username: user.username,
+      transaction: transaction.log,
     });
   } catch (error) {
     console.log("Error Creating User", error.message);
@@ -85,17 +92,19 @@ router.post("/deposit", userAuth, async (req, res) => {
     const user = await User.findOne({ _id: req.user?._id });
     if (!user) return res.status(404).json({ message: "User not Found" });
 
-    await Transaction.create({
-      username: req.user?.username,
-      address: address,
-      type: "deposit",
-      amount: amount,
-    });
+    await Transaction.updateOne(
+      { username: req.user?.username },
+      {
+        $push: { log: `${req.user.username} deposited ${amount} ${cryptocurrency}` },
+      }
+    );
+    const transaction = await Transaction.findOne({ username: req.user.username });
 
     return res.status(200).json({
       message: `Deposited ${amount} ${cryptocurrency} in Account`,
       balance: user.balance,
       virtual_balance: user.virtual_balance,
+      transaction: transaction.log,
     });
   } catch (error) {
     console.log("Error Depositing Money", error);
@@ -123,14 +132,15 @@ router.post("/play", userAuth, async (req, res) => {
 
     number >= 50 ? (amount = wager) : (amount = -wager);
 
-    // create transacation logs
-    await Transaction.create({
-      username: req.user?.username,
-      address: req.user?.address[cryptocurrency],
-      type: "result",
-      result: amount > 0 ? "won" : "lost",
-      amount: wager,
-    });
+    await Transaction.updateOne(
+      { username: req.user?.username },
+      {
+        $push: {
+          log: `${req.user.username} ${amount > 0 ? "won" : "lost"} ${wager} ${cryptocurrency}`,
+        },
+      }
+    );
+    const transaction = await Transaction.findOne({ username: req.user.username });
 
     // update users's virtual_balance
     await User.updateOne(
@@ -144,6 +154,7 @@ router.post("/play", userAuth, async (req, res) => {
     return res.status(200).json({
       message: amount > 0 ? "You Won this Round!" : "You Lost this Round!",
       virtual_balance: user.virtual_balance,
+      transaction: transaction.log,
     });
   } catch (error) {
     console.log("Error playing game", error.message);
@@ -166,24 +177,17 @@ router.post("/withdraw", userAuth, async (req, res) => {
       .select("virtual_balance balance")
       .lean();
 
-    console.log("amount", amount);
-    console.log("before vb", before.virtual_balance[cryptocurrency]);
-    console.log("before balance", before.balance[cryptocurrency]);
-    console.log("before casinoBal", casinoBalance.balance[cryptocurrency]);
-    console.log("\n");
-
+    // console.log("amount", amount);
+    // console.log("before vb", before.virtual_balance[cryptocurrency]);
+    // console.log("before balance", before.balance[cryptocurrency]);
+    // console.log("before casinoBal", casinoBalance.balance[cryptocurrency]);
+    // console.log("\n");
+    let transaction = "Failed Transaction";
     if (
       amount <= before.virtual_balance[cryptocurrency] &&
       amount <= before.balance[cryptocurrency]
     ) {
-      console.log("first condition");
-
-      await Transaction.create({
-        username: req.user?.username,
-        address,
-        type: "withdrawal",
-        amount: amount,
-      });
+      // console.log("first condition");
 
       await User.updateOne(
         { _id: req.user._id },
@@ -194,23 +198,20 @@ router.post("/withdraw", userAuth, async (req, res) => {
           },
         }
       );
-    } else if (
-      parseInt(amount) <= before.virtual_balance[cryptocurrency] &&
-      parseInt(amount) - before.balance[cryptocurrency] <= casinoBalance.balance[cryptocurrency]
-    ) {
-      console.log("2nd condition");
 
-      await Transaction.create({
-        username: req.user?.username,
-        address,
-        type: "withdrawal",
-        amount: amount,
-      });
+      await Transaction.updateOne(
+        { username: req.user?.username },
+        { $push: { log: `${req.user.username} did a withdrawal of ${amount} ${cryptocurrency}` } }
+      );
+      transaction = await Transaction.findOne({ username: req.user.username });
+    } else if (
+      amount <= before.virtual_balance[cryptocurrency] &&
+      amount - before.balance[cryptocurrency] <= casinoBalance.balance[cryptocurrency]
+    ) {
+      // console.log("2nd condition");
 
       await User.updateOne(
-        {
-          _id: req.user._id,
-        },
+        { _id: req.user._id },
         {
           $inc: {
             [`virtual_balance.${cryptocurrency}`]: -amount,
@@ -221,9 +222,13 @@ router.post("/withdraw", userAuth, async (req, res) => {
         }
       );
       casinoBalance.balance[cryptocurrency] -= amount - before.balance[cryptocurrency];
+      await Transaction.updateOne(
+        { username: req.user?.username },
+        { $push: { log: `${req.user._id} withdrew ${amount}` } }
+      );
+      transaction = await Transaction.findOne({ username: req.user.username });
     } else {
-      console.log("3rd condition");
-
+      // console.log("3rd condition");
       const user = await User.findOne({ _id: req.user._id }).lean();
       return res.status(404).json({
         message: "Insufficient balance",
@@ -234,14 +239,13 @@ router.post("/withdraw", userAuth, async (req, res) => {
     }
 
     const user = await User.findOne({ _id: req.user._id }).lean();
-    console.log("user", user);
-    console.log("casinoBal", casinoBalance.balance[cryptocurrency]);
 
     return res.status(200).json({
-      message: "Withdrawal successsful",
+      message: "Withdrawal Successful!",
       balance: user.balance,
       virtual_balance: user.virtual_balance,
       casinoBal: casinoBalance.balance,
+      transaction: transaction.log,
     });
   } catch (error) {
     console.log("Error Withdrawing Amount", error);
@@ -253,6 +257,8 @@ router.get("/balance", userAuth, async (req, res) => {
   try {
     const user = await User.findOne({ _id: req.user._id }).lean();
     if (!user) return res.status(404).json({ message: "User not found" });
+    const transaction = await Transaction.findOne({ username: req.user.username });
+    console.log(transaction.log);
 
     return res.status(200).json({
       message: "Balance fetched successsfully",
@@ -260,6 +266,7 @@ router.get("/balance", userAuth, async (req, res) => {
       virtual_balance: user.virtual_balance,
       address: user.address,
       casinoBal: casinoBalance.balance,
+      transaction: transaction.log,
     });
   } catch (error) {
     console.log("Error fetching user balance", error);
